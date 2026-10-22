@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from dev_metrics.dashboard import render
 from dev_metrics.fingerprint import environment_fingerprint
@@ -44,6 +45,22 @@ class MetricsTests(unittest.TestCase):
         result = environment_fingerprint(self.db.parent / "missing-requirements.txt")
         self.assertEqual(len(result), 16)
         self.assertTrue(all(char in "0123456789abcdef" for char in result))
+
+    def test_fingerprint_survives_missing_git_executable(self):
+        with patch("dev_metrics.fingerprint.subprocess.run", side_effect=FileNotFoundError):
+            result = environment_fingerprint(self.db.parent / "missing-requirements.txt")
+        self.assertEqual(len(result), 16)
+
+    def test_collect_rejects_non_finite_durations(self):
+        from dev_metrics.cli import main
+        for option in ("--build-seconds", "--test-seconds"):
+            with self.subTest(option=option), self.assertRaises(SystemExit):
+                main(["collect", option, "inf"])
+
+    def test_collect_rejects_negative_test_counts(self):
+        from dev_metrics.cli import main
+        with self.assertRaises(SystemExit):
+            main(["collect", "--tests-passed", "-1", "--tests-total", "2"])
 
 
 if __name__ == "__main__":

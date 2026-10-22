@@ -1,21 +1,14 @@
-stages: [test, metrics]
+stages: [verify]
 
-test:
-  stage: test
+verify_and_collect:
+  stage: verify
   image: python:3.12-slim
   script:
     - export PYTHONPATH="$CI_PROJECT_DIR/src"
-    - python -m unittest discover -s tests -v
-  retry: 1
-  timeout: 5m
-
-collect_metrics:
-  stage: metrics
-  image: python:3.12-slim
-  script:
-    - export PYTHONPATH="$CI_PROJECT_DIR/src"
-    - python -m dev_metrics collect --db metrics.db --build-seconds 0 --test-seconds 0 --tests-passed 0 --tests-total 0
+    - python -m dev_metrics.ci --db metrics.db
     - python -m dev_metrics dashboard --db metrics.db --output dashboard.html
   artifacts:
+    when: always
     paths: [metrics.db, dashboard.html]
     expire_in: 7 days
+  timeout: 5m

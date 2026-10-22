@@ -5,5 +5,5 @@ __pycache__/
 .pytest_cache/
 metrics.db
 *.sqlite
-dashboard.html
+dashboard*.html
 check.html

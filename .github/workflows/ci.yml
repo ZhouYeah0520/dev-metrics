@@ -8,17 +8,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Run unit tests
+      - name: Run tests and collect actual metrics
         env:
           PYTHONPATH: src
-        run: python -m unittest discover -s tests -v
-      - name: Collect run metrics
+        run: python -m dev_metrics.ci --db metrics.db
+      - name: Render dashboard
+        if: always()
         env:
           PYTHONPATH: src
-        run: |
-          python -m dev_metrics collect --db metrics.db --test-seconds 0 --tests-passed 6 --tests-total 6
-          python -m dev_metrics dashboard --db metrics.db --output dashboard.html
+        run: python -m dev_metrics dashboard --db metrics.db --output dashboard.html
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: dev-metrics-dashboard
           path: dashboard.html

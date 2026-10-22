@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import json
+import math
 import os
 import subprocess
 import time
@@ -38,6 +40,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "collect":
         commit = args.commit or git_value("rev-parse", "HEAD")
         pipeline_id = args.pipeline_id or f"local-{int(time.time())}"
+        if not math.isfinite(args.build_seconds) or args.build_seconds < 0:
+            parser.error("--build-seconds must be a finite non-negative number")
+        if not math.isfinite(args.test_seconds) or args.test_seconds < 0:
+            parser.error("--test-seconds must be a finite non-negative number")
+        if args.tests_passed < 0 or args.tests_total < 0:
+            parser.error("test counts must be non-negative")
         if args.tests_total < args.tests_passed:
             parser.error("--tests-total must be greater than or equal to --tests-passed")
         run = {
@@ -46,11 +54,13 @@ def main(argv: list[str] | None = None) -> int:
             "tests_passed": args.tests_passed, "tests_total": args.tests_total,
             "environment_fingerprint": environment_fingerprint(args.requirements),
         }
-        with connect(args.db) as connection:
-            upsert_run(connection, run)
+        with closing(connect(args.db)) as connection:
+            with connection:
+                upsert_run(connection, run)
         print(json.dumps(run, ensure_ascii=False, indent=2))
     elif args.command == "dashboard":
-        with connect(args.db) as connection:
-            target = write_dashboard(connection, args.output)
+        with closing(connect(args.db)) as connection:
+            with connection:
+                target = write_dashboard(connection, args.output)
         print(target.resolve())
     return 0
